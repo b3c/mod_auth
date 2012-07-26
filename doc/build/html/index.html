@@ -1,0 +1,662 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Welcome to mod_auth’s documentation! &mdash; mod_auth 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="mod_auth 1.0 documentation" href="#" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="#">mod_auth 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="welcome-to-mod-auth-s-documentation">
+<h1>Welcome to mod_auth&#8217;s documentation!<a class="headerlink" href="#welcome-to-mod-auth-s-documentation" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="requirement">
+<h2>Requirement<a class="headerlink" href="#requirement" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><ul class="simple">
+<li>Python2.6+</li>
+<li>M2Crypto library</li>
+<li>Setuptools</li>
+<li>pip</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>To install mod_auth Library you can run this command from unix shell:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">sudo</span> <span class="n">pip</span> <span class="n">install</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">asaglimbeni</span><span class="o">/</span><span class="n">mod_auth</span><span class="o">/</span><span class="n">zipball</span><span class="o">/</span><span class="n">master</span>
+</pre></div>
+</div>
+<div class="toctree-wrapper compound">
+<ul class="simple">
+</ul>
+</div>
+</div>
+</div>
+<div class="section" id="module-mod_auth.mod_auth">
+<span id="mod-auth"></span><h1>Mod_Auth<a class="headerlink" href="#module-mod_auth.mod_auth" title="Permalink to this headline">¶</a></h1>
+<p>This module implements the session cookie format from <a class="reference external" href="http://www.openfusion.com.au/labs/mod_auth_tkt/">mod_auth_tkt</a> and <a class="reference external" href="https://neon1.net/mod_auth_pubtkt/index.html">mod_auth_pubtkt</a>.
+In this documentation show you how to use and integrate mod_auth library into your project.</p>
+<p>Contributors:</p>
+<p>Before start I want say a BIG TANKS to plone.session team for tkauth.py module. It help us to start with this library:</p>
+<blockquote>
+<div>plone-session: <a class="reference external" href="https://github.com/plone/plone.session/blob/master/plone/session/tktauth.py">https://github.com/plone/plone.session/blob/master/plone/session/tktauth.py</a></div></blockquote>
+<p>And to Andrey Plotnikov for a easy implementation fo mod_auth_pubtkt</p>
+<blockquote>
+<div>auth_pubtkt: <a class="reference external" href="https://github.com/AndreyPlotnikov/auth_pubtkt">https://github.com/AndreyPlotnikov/auth_pubtkt</a></div></blockquote>
+<div class="section" id="mod-auth-tkt-style-cookie-authentication">
+<h2>mod_auth_tkt style cookie authentication<a class="headerlink" href="#mod-auth-tkt-style-cookie-authentication" title="Permalink to this headline">¶</a></h2>
+<p>Mod_auth library implements the session cookie format from <a class="reference external" href="http://www.openfusion.com.au/labs/mod_auth_tkt/">mod_auth_tkt</a>, the class used is Ticket.
+Now <tt class="docutils literal"><span class="pre">createTicket</span></tt> and <tt class="docutils literal"><span class="pre">validateTicket</span></tt> functions use the <a class="reference external" href="http://en.wikipedia.org/wiki/MD5">MD5</a> based
+double hashing scheme in the original mod_auth_tkt.</p>
+<div class="section" id="configuration">
+<h3>Configuration<a class="headerlink" href="#configuration" title="Permalink to this headline">¶</a></h3>
+<p>In mod_auth_tkt the protocol depends on a secret string shared between servers.
+From time to time this string should be changed, so store it in a configuration file.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">SECRET</span> <span class="o">=</span> <span class="s">&#39;b8fb7b6df0d64dd98b8ccd00577434d7&#39;</span>
+</pre></div>
+</div>
+<p>The tickets are only valid for a limited time. Here we will use 24 hours</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">DEFAULT_TIMEOUT</span> <span class="o">=</span> <span class="mi">24</span><span class="o">*</span><span class="mi">60</span><span class="o">*</span><span class="mi">60</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="ticket-creation">
+<h3>Ticket creation<a class="headerlink" href="#ticket-creation" title="Permalink to this headline">¶</a></h3>
+<p>The minimal set of attributes to create a ticket are composed only from a userid:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">userid</span> <span class="o">=</span> <span class="s">&#39;testUser&#39;</span>
+</pre></div>
+</div>
+<p>First stemp is to init Ticket object:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">mod_auth</span> <span class="kn">import</span> <span class="n">Ticket</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mod_auth_Ticket</span> <span class="o">=</span> <span class="n">Ticket</span><span class="p">(</span><span class="n">SECRET</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>So, set the validuntil that the user will log out.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">validuntil</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span><span class="o">+</span> <span class="p">(</span><span class="mi">24</span><span class="o">*</span><span class="mi">60</span><span class="o">*</span><span class="mi">60</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>We will create a mod_auth_tkt compatible ticket. In the simplest case no extra
+data is supplied.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">ticket</span> <span class="o">=</span> <span class="n">mod_auth_Ticket</span><span class="o">.</span><span class="n">createTkt</span><span class="p">(</span><span class="n">userid</span><span class="p">,</span><span class="n">validuntil</span><span class="o">=</span><span class="n">validuntil</span><span class="p">)</span>
+<span class="go">&gt;&gt;&gt;&#39;b054eeab313d4b75e10f4fd4ddb36ecf50115dcctestUser!&#39;</span>
+</pre></div>
+</div>
+<p>The cookie itself should be base64 encoded. We will use the built-in Cookie
+module here, your web framework may supply it&#8217;s own mechanism.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">Cookie</span><span class="o">,</span> <span class="nn">binascii</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cookie</span> <span class="o">=</span> <span class="n">Cookie</span><span class="o">.</span><span class="n">SimpleCookie</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cookie</span><span class="p">[</span><span class="s">&#39;auth_tkt&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">binascii</span><span class="o">.</span><span class="n">b2a_base64</span><span class="p">(</span><span class="n">ticket</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">cookie</span>
+<span class="go">Set-Cookie: auth_tkt=YjA1NGVlYWIzMTNkNGI3NWUxMGY0ZmQ0ZGRiMzZlY2Y1MDExNWRjY3Rlc3RVc2VyIQ==</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="ticket-validation">
+<h3>Ticket validation<a class="headerlink" href="#ticket-validation" title="Permalink to this headline">¶</a></h3>
+<p>First the ticket has to be read from the cookie and unencoded:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">ticket</span> <span class="o">=</span> <span class="n">binascii</span><span class="o">.</span><span class="n">a2b_base64</span><span class="p">(</span><span class="n">cookie</span><span class="p">[</span><span class="s">&#39;auth_tkt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ticket</span>
+<span class="go">&#39;b054eeab313d4b75e10f4fd4ddb36ecf50115dcctestUser!&#39;</span>
+</pre></div>
+</div>
+<p>The server that invoke validateTkt and open a session cookie
+need of the SECRET to validate the digest into ticket.</p>
+<p>Init the Ticket object:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">mod_auth</span> <span class="kn">import</span> <span class="n">Ticket</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mod_auth_Ticket</span> <span class="o">=</span> <span class="n">Ticket</span><span class="p">(</span><span class="n">SECRET</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>next step is to validate:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">mod_auth_Ticket</span><span class="o">.</span><span class="n">validateTkt</span><span class="p">(</span><span class="n">ticket</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="p">(</span><span class="s">u&#39;testUser&#39;</span><span class="p">,</span> <span class="p">(),</span> <span class="s">u&#39;&#39;</span><span class="p">,</span> <span class="mi">1343315404</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If the ticket is valid and not expired , validateTkt return all information
+about logged user else raise an Exception (see function documentation for detail)</p>
+</div>
+<div class="section" id="tokens-and-user-data">
+<h3>Tokens and user data<a class="headerlink" href="#tokens-and-user-data" title="Permalink to this headline">¶</a></h3>
+<p>The format allows for optional user data and tokens. For detail you can see
+the test.py into mod_auh module, where there are some use test of this class.
+Here an example:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">Secret</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># Init SignedTicket object</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">simpleTicket</span> <span class="o">=</span> <span class="n">Ticket</span><span class="p">(</span><span class="n">Secret</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">#USER DATA</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">userid</span> <span class="o">=</span> <span class="s">&#39;TestUser&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tokens</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;role1&#39;</span><span class="p">,</span> <span class="s">&#39;role2&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">userdata</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;testuser@mail.com&#39;</span><span class="p">,</span><span class="s">&#39;Italy&#39;</span><span class="p">,</span><span class="s">&#39;Bologna&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cip</span> <span class="o">=</span> <span class="s">&#39;127.0.0.1&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># ticket is valdi until 24 from now</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">validuntil</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span><span class="o">+</span> <span class="p">(</span><span class="mi">24</span><span class="o">*</span><span class="mi">60</span><span class="o">*</span><span class="mi">60</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">#END USERDATA</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">ticket</span> <span class="o">=</span> <span class="n">simpleTicket</span><span class="o">.</span><span class="n">createTkt</span><span class="p">(</span><span class="n">userid</span><span class="p">,</span><span class="n">tokens</span><span class="p">,</span><span class="n">userdata</span><span class="p">,</span><span class="n">cip</span><span class="p">,</span><span class="n">validuntil</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="mod-auth-pubtkt-style-cookie-authentication">
+<h2>Mod_auth_pubtkt style cookie authentication<a class="headerlink" href="#mod-auth-pubtkt-style-cookie-authentication" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference external" href="https://neon1.net/mod_auth_pubtkt/index.html">mod_auth_pubtkt</a> is a module that authenticates a user based on a cookie
+with a ticket that has been issued by a central login server and digitally signed
+using either RSA or DSA. This means that only the trusted login server has the private key
+required to generate tickets, while web servers only need the corresponding public key to verify them.</p>
+<p>In mod_auth module is implemented  by SignedTicket class.</p>
+<div class="section" id="id1">
+<h3>Configuration<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>BE CAREFUL!For your safety, please, if you use this module in your project,
+generate new keys (DSA or RSA) , to do that see the section below:</p>
+<p>From your unix shell.
+DSA:</p>
+<blockquote>
+<div><p>openssl dsaparam -out dsaparam.pem 2048</p>
+<p>openssl gendsa -out privDSAkey.pem dsaparam.pem</p>
+<p>openssl dsa -in privDSAkey.pem -out pubDSAkey.pem -pubout</p>
+<p>The dsaparam.pem file is not needed anymore after key generation and can safely be deleted.</p>
+</div></blockquote>
+<p>RSA:</p>
+<blockquote>
+<div><p>openssl genDSArsa -out privkey.pem 2048</p>
+<p>openssl rsa -in privDSAkey.pem -out pubkey.pem -pubout</p>
+</div></blockquote>
+</div>
+<div class="section" id="id2">
+<h3>Ticket creation<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<p>Like into Ticket class , the minimal set of attributes
+to create a ticket are composed only by a userid:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">userid</span> <span class="o">=</span> <span class="s">&#39;testUser&#39;</span>
+</pre></div>
+</div>
+<p>First stemp is to init SignedTicket object with your keys:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">mod_auth</span> <span class="kn">import</span> <span class="n">SignedTicket</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mod_auth_pubTicket</span> <span class="o">=</span> <span class="n">Ticket</span><span class="p">(</span><span class="n">path_pub_key</span><span class="p">,</span><span class="n">path_priv_key</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>you can use RSA or DSA keys in pem or der format.</p>
+<p>So, set the validuntil that the user will log out.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">validuntil</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span><span class="o">+</span> <span class="p">(</span><span class="mi">24</span><span class="o">*</span><span class="mi">60</span><span class="o">*</span><span class="mi">60</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>We will create a mod_auth_pubtkt compatible ticket. In the simplest case no extra
+data is supplied.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">ticket</span> <span class="o">=</span> <span class="n">mod_auth_pubTicket</span><span class="o">.</span><span class="n">createTkt</span><span class="p">(</span><span class="n">userid</span><span class="p">,</span><span class="n">validuntil</span><span class="o">=</span><span class="n">validuntil</span><span class="p">)</span>
+<span class="go">&gt;&gt;&gt;&#39;uid=testUser;validuntil=1343379094;cip=0.0.0.0;sig=MC0CFQCJexq0701MPIcUYHoacJCKCbor1gIUI+oPZElmsNY8/rmk069+ef/u47o=&#39;</span>
+</pre></div>
+</div>
+<p>The cookie itself should be base64 encoded. We will use the built-in Cookie
+module here, your web framework may supply it&#8217;s own mechanism.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">Cookie</span><span class="o">,</span> <span class="nn">binascii</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cookie</span> <span class="o">=</span> <span class="n">Cookie</span><span class="o">.</span><span class="n">SimpleCookie</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cookie</span><span class="p">[</span><span class="s">&#39;auth_tkt&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">binascii</span><span class="o">.</span><span class="n">b2a_base64</span><span class="p">(</span><span class="n">ticket</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">cookie</span>
+<span class="go">Set-Cookie: auth_tkt=dWlkPXRlc3RVc2VyO3ZhbGlkdW50aWw9MTM0MzM3OTA5NDtjaXA9MC4wLjAuMDtzaWc9TUMwQ0ZEK1RibmpjMi91OEdjZVBGMm1MK24xTXk5bjRBaFVBalBFYTRDZ1RORHhMV2dlWjZTVjhjSGN3S3pRPQ==</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id3">
+<h3>Ticket validation<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h3>
+<p>First the ticket has to be read from the cookie and unencoded:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">ticket</span> <span class="o">=</span> <span class="n">binascii</span><span class="o">.</span><span class="n">a2b_base64</span><span class="p">(</span><span class="n">cookie</span><span class="p">[</span><span class="s">&#39;auth_tkt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ticket</span>
+<span class="go">&#39;uid=testUser;validuntil=1343379094;cip=0.0.0.0;sig=MC0CFQCJexq0701MPIcUYHoacJCKCbor1gIUI+oPZElmsNY8/rmk069+ef/u47o=&#39;</span>
+</pre></div>
+</div>
+<p>The server that invoke validateTkt and open a session cookie
+need at least public Key.
+Init the Ticket object:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">mod_auth</span> <span class="kn">import</span> <span class="n">SignedTicket</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mod_auth_pubTicket</span> <span class="o">=</span> <span class="n">SignedTicket</span><span class="p">(</span><span class="n">path_pub_key</span><span class="p">)</span>
+<span class="go">## if you init with public key , SignedTicket can only validate and not create</span>
+</pre></div>
+</div>
+<p>next step is to validate:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">mod_auth_pubTicket</span><span class="o">.</span><span class="n">validateTkt</span><span class="p">(</span><span class="n">ticket</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="p">(</span><span class="s">u&#39;testUser&#39;</span><span class="p">,</span> <span class="p">[],</span> <span class="p">[],</span> <span class="mi">1343380332</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If the ticket is valid with valid sign and not expired , validateTkt return all information
+about logged user else raise an Exception (see function documentation for detail)</p>
+</div>
+<div class="section" id="id4">
+<h3>Tokens and user data<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h3>
+<p>The format allows for optional user data and tokens. For detail you can see
+the test.py into mod_auh module, where there are some use test of this class.
+Here an example:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c"># Init SignedTicket object</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">signTicket</span> <span class="o">=</span> <span class="n">SignedTicket</span><span class="p">(</span><span class="s">&#39;./DSApubkey.pem&#39;</span><span class="p">,</span><span class="s">&#39;./DSAprivkey.pem&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">#USER DATA</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">userid</span> <span class="o">=</span> <span class="s">&#39;TestUser&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tokens</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;role1&#39;</span><span class="p">,</span> <span class="s">&#39;role2&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">userdata</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;testuser@mail.com&#39;</span><span class="p">,</span><span class="s">&#39;Italy&#39;</span><span class="p">,</span><span class="s">&#39;Bologna&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cip</span> <span class="o">=</span> <span class="s">&#39;127.0.0.1&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># ticket is valdi until 24h from now</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">validuntil</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span><span class="o">+</span> <span class="p">(</span><span class="mi">24</span><span class="o">*</span><span class="mi">60</span><span class="o">*</span><span class="mi">60</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#END USERDATA</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">ticket</span> <span class="o">=</span> <span class="n">signTicket</span><span class="o">.</span><span class="n">createTkt</span><span class="p">(</span><span class="n">userid</span><span class="p">,</span><span class="n">tokens</span><span class="p">,</span><span class="n">userdata</span><span class="p">,</span><span class="n">cip</span><span class="p">,</span><span class="n">validuntil</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="simple-use">
+<h1>Simple use<a class="headerlink" href="#simple-use" title="Permalink to this headline">¶</a></h1>
+<p>To start with mod_auth Library you can use Simple function to create and validate Ticket.
+They based on mod_auth_tkt cookie authentication and work with minimum set of attribute , SECRET and USERID.
+SECRET have to be shared with all server where you intend to use tickets system authetication.
+Example of use:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">mod_auth</span> <span class="kn">import</span> <span class="n">createSimpleTicket</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">mod_auth</span> <span class="kn">import</span> <span class="n">validateSimpleTicket</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">SECRET</span> <span class="o">=</span> <span class="s">&#39;b8fb7b6df0d64dd98b8ccd00577434d7&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">userid</span> <span class="o">=</span> <span class="s">&#39;testUser&#39;</span>
+<span class="go">#Ticket creation</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tkt</span> <span class="o">=</span> <span class="n">createSimpleTicket</span><span class="p">(</span><span class="n">SECRET</span><span class="p">,</span><span class="n">userid</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tkt</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s">&#39;1cfdad68a9f9b70227da2bbd99ca462e5011c7b7testUser!&#39;</span>
+<span class="go">#Ticket validation</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">validateSimpleTicket</span><span class="p">(</span><span class="n">tkt</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="p">(</span><span class="s">u&#39;testUser&#39;</span><span class="p">,</span> <span class="p">(),</span> <span class="s">u&#39;&#39;</span><span class="p">,</span> <span class="mi">1343342519</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="staticmethod">
+<dt id="mod_auth.mod_auth.createSimpleTicket">
+<em class="property">static </em><tt class="descclassname">mod_auth.</tt><tt class="descname">createSimpleTicket</tt><big>(</big><em>secret</em>, <em>userid</em>, <em>tokens=()</em>, <em>user_data=()</em><big>)</big><a class="headerlink" href="#mod_auth.mod_auth.createSimpleTicket" title="Permalink to this definition">¶</a></dt>
+<dd><p>Simple way to use mod_auth_tkt cookie authentication.
+To create a ticket it need only of SECRET and userid.</p>
+<p>Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">secret</span></tt> (string):</dt>
+<dd>secret key.</dd>
+<dt><tt class="docutils literal"><span class="pre">userid</span></tt> (string):</dt>
+<dd>Unique user identifier.</dd>
+</dl>
+</div></blockquote>
+<p>Optional arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">tokens</span></tt> (tupla):</dt>
+<dd>tokens list.</dd>
+<dt><tt class="docutils literal"><span class="pre">user_data</span></tt> (tupla):</dt>
+<dd>user data list</dd>
+</dl>
+</div></blockquote>
+<p>Return:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">ticket</span></tt> (string):</dt>
+<dd>mod_auth_ticket format.</dd>
+</dl>
+</div></blockquote>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="mod_auth.mod_auth.validateSimpleTicket">
+<em class="property">static </em><tt class="descclassname">mod_auth.</tt><tt class="descname">validateSimpleTicket</tt><big>(</big><em>secret</em>, <em>ticket</em><big>)</big><a class="headerlink" href="#mod_auth.mod_auth.validateSimpleTicket" title="Permalink to this definition">¶</a></dt>
+<dd><p>Simple way to use mod_auth_tkt cookie authentication.
+To validate a ticket it need only of SECRET and ticket.</p>
+<p>Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">secret</span></tt> (string):</dt>
+<dd>secret key.</dd>
+<dt><tt class="docutils literal"><span class="pre">ticket</span></tt> (string):</dt>
+<dd>Ticket string value.</dd>
+</dl>
+</div></blockquote>
+<p>Return:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">fields</span></tt> (tupla):</dt>
+<dd>ticket&#8217;s fields format (userid, tocken, userdata, validuntil)</dd>
+</dl>
+</div></blockquote>
+</dd></dl>
+
+</div>
+<div class="section" id="signedticket">
+<h1>SignedTicket<a class="headerlink" href="#signedticket" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="mod_auth.mod_auth.SignedTicket">
+<em class="property">class </em><tt class="descclassname">mod_auth.mod_auth.</tt><tt class="descname">SignedTicket</tt><big>(</big><em>pub_key_Path</em>, <em>priv_key_Path=None</em><big>)</big><a class="reference internal" href="_modules/mod_auth/mod_auth.html#SignedTicket"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mod_auth.mod_auth.SignedTicket" title="Permalink to this definition">¶</a></dt>
+<dd><p>Mod_auth_pubtkt style cookie authentication class.</p>
+<dl class="method">
+<dt id="mod_auth.mod_auth.SignedTicket.validateTkt">
+<tt class="descname">validateTkt</tt><big>(</big><em>ticket</em>, <em>now=None</em>, <em>encoding='utf8'</em><big>)</big><a class="reference internal" href="_modules/mod_auth/mod_auth.html#SignedTicket.validateTkt"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mod_auth.mod_auth.SignedTicket.validateTkt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse and verify auth_pubtkt ticket.</p>
+<p>Returns tupla with ticket&#8217;s fields format:
+(userid, tocken, userdata, validuntil)</p>
+<p><tt class="docutils literal"><span class="pre">TicketParseError</span></tt> exceptions can be raised in case of invalid
+ticket format or signature verification failure.</p>
+<p><tt class="docutils literal"><span class="pre">TicketExpired</span></tt> exceptions raised if ticket expire.</p>
+<p>Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">ticket</span></tt> (string):</dt>
+<dd>Ticket string value.</dd>
+<dt><tt class="docutils literal"><span class="pre">now</span></tt> (string):</dt>
+<dd>Timestamp of client datetime, if not set , server timestamp is used.</dd>
+<dt><tt class="docutils literal"><span class="pre">encoding</span></tt>:</dt>
+<dd>encoding of the data into ticket</dd>
+</dl>
+</div></blockquote>
+<p>Return:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">fields</span></tt> (tupla):</dt>
+<dd>ticket&#8217;s fields format (userid, tocken, userdata, validuntil)</dd>
+</dl>
+</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="mod_auth.mod_auth.SignedTicket.createTkt">
+<tt class="descname">createTkt</tt><big>(</big><em>userid</em>, <em>tokens=()</em>, <em>user_data=()</em>, <em>cip='0.0.0.0'</em>, <em>validuntil=None</em>, <em>encoding='utf8'</em><big>)</big><a class="reference internal" href="_modules/mod_auth/mod_auth.html#SignedTicket.createTkt"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mod_auth.mod_auth.SignedTicket.createTkt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create mod_auth_pubtkt ticket.</p>
+<p>Returns a valid ticket string.</p>
+<p>Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">userid</span></tt> (string):</dt>
+<dd>Unique user identifier.</dd>
+</dl>
+</div></blockquote>
+<p>Optional arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">tokens</span></tt> (tupla):</dt>
+<dd>tokens list.</dd>
+<dt><tt class="docutils literal"><span class="pre">user_data</span></tt> (tupla):</dt>
+<dd>user data list</dd>
+<dt><tt class="docutils literal"><span class="pre">cip</span></tt> (string):</dt>
+<dd>user client ip.</dd>
+<dt><tt class="docutils literal"><span class="pre">validuntil</span></tt> (string):</dt>
+<dd>timestamp of ticket expiration.</dd>
+<dt><tt class="docutils literal"><span class="pre">encoding</span></tt> :</dt>
+<dd>encoding of the data into ticket</dd>
+</dl>
+</div></blockquote>
+<p>Return:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">ticket</span></tt> (string):</dt>
+<dd>mod_auth_pubtkt signed ticket format.</dd>
+</dl>
+</div></blockquote>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="ticket">
+<h1>Ticket<a class="headerlink" href="#ticket" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="mod_auth.mod_auth.Ticket">
+<em class="property">class </em><tt class="descclassname">mod_auth.mod_auth.</tt><tt class="descname">Ticket</tt><big>(</big><em>secret</em><big>)</big><a class="reference internal" href="_modules/mod_auth/mod_auth.html#Ticket"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mod_auth.mod_auth.Ticket" title="Permalink to this definition">¶</a></dt>
+<dd><p>Mod_auth_tkt style cookie authentication class.</p>
+<dl class="method">
+<dt id="mod_auth.mod_auth.Ticket.validateTkt">
+<tt class="descname">validateTkt</tt><big>(</big><em>ticket</em>, <em>cip='0.0.0.0'</em>, <em>now=None</em>, <em>encoding='utf8'</em><big>)</big><a class="reference internal" href="_modules/mod_auth/mod_auth.html#Ticket.validateTkt"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mod_auth.mod_auth.Ticket.validateTkt" title="Permalink to this definition">¶</a></dt>
+<dd><p>To validate, a new ticket is created from the data extracted from cookie
+and the shared secret. The two digests are compared and timestamp checked.</p>
+<p>Successful validation returns a tupla with ticket&#8217;s fields format:
+(userid, tocken, userdata, validuntil)</p>
+<p><tt class="docutils literal"><span class="pre">BadTicket</span></tt> exceptions can be raised in case of invalid
+ticket format or digest verification failure.</p>
+<p><tt class="docutils literal"><span class="pre">TicketExpired</span></tt> exceptions raised if ticket expire.</p>
+<p>Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">ticket</span></tt> (string):</dt>
+<dd>Ticket string value.</dd>
+<dt><tt class="docutils literal"><span class="pre">cip</span></tt> (string):</dt>
+<dd>if createtkt was set client ip, here it need too, because it validate the digest.</dd>
+<dt><tt class="docutils literal"><span class="pre">now</span></tt> (string):</dt>
+<dd>Timestamp of client datetime, if not set , server timestamp is used.</dd>
+<dt><tt class="docutils literal"><span class="pre">encoding</span></tt>:</dt>
+<dd>encoding of the data into ticket</dd>
+</dl>
+</div></blockquote>
+<p>Return:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">fields</span></tt> (tupla):</dt>
+<dd>ticket&#8217;s fields format (userid, tocken, userdata, validuntil)</dd>
+</dl>
+</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="mod_auth.mod_auth.Ticket.createTkt">
+<tt class="descname">createTkt</tt><big>(</big><em>userid</em>, <em>tokens=()</em>, <em>user_data=()</em>, <em>cip='0.0.0.0'</em>, <em>validuntil=None</em>, <em>encoding='utf8'</em><big>)</big><a class="reference internal" href="_modules/mod_auth/mod_auth.html#Ticket.createTkt"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mod_auth.mod_auth.Ticket.createTkt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create mod_auth_pubtkt ticket.</p>
+<p>Returns a valid ticket string.</p>
+<p>Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">userid</span></tt> (string):</dt>
+<dd>Unique user identifier.</dd>
+</dl>
+</div></blockquote>
+<p>Optional arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">tokens</span></tt> (tupla):</dt>
+<dd>tokens list.</dd>
+<dt><tt class="docutils literal"><span class="pre">user_data</span></tt> (tupla):</dt>
+<dd>user data list</dd>
+<dt><tt class="docutils literal"><span class="pre">cip</span></tt> (string):</dt>
+<dd>user client ip.</dd>
+<dt><tt class="docutils literal"><span class="pre">validuntil</span></tt> (string):</dt>
+<dd>timestamp of ticket expiration.</dd>
+<dt><tt class="docutils literal"><span class="pre">encoding</span></tt> :</dt>
+<dd>encoding of the data into ticket</dd>
+</dl>
+</div></blockquote>
+<p>Return:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">ticket</span></tt> (string):</dt>
+<dd>mod_auth_ticket format.</dd>
+</dl>
+</div></blockquote>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-mod_auth.exception">
+<span id="exception"></span><h1>Exception<a class="headerlink" href="#module-mod_auth.exception" title="Permalink to this headline">¶</a></h1>
+<dl class="exception">
+<dt id="mod_auth.exception.BadSignature">
+<em class="property">exception </em><tt class="descclassname">mod_auth.exception.</tt><tt class="descname">BadSignature</tt><big>(</big><em>ticket</em><big>)</big><a class="reference internal" href="_modules/mod_auth/exception.html#BadSignature"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mod_auth.exception.BadSignature" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exception raised when a signature verification is failed</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="mod_auth.exception.BadTicket">
+<em class="property">exception </em><tt class="descclassname">mod_auth.exception.</tt><tt class="descname">BadTicket</tt><big>(</big><em>ticket</em>, <em>msg=''</em><big>)</big><a class="reference internal" href="_modules/mod_auth/exception.html#BadTicket"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mod_auth.exception.BadTicket" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exception raised when a ticket has invalid format</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="mod_auth.exception.TicketExpired">
+<em class="property">exception </em><tt class="descclassname">mod_auth.exception.</tt><tt class="descname">TicketExpired</tt><big>(</big><em>ticket</em><big>)</big><a class="reference internal" href="_modules/mod_auth/exception.html#TicketExpired"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mod_auth.exception.TicketExpired" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exception raised when a signature verification is failed</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="mod_auth.exception.TicketParseError">
+<em class="property">exception </em><tt class="descclassname">mod_auth.exception.</tt><tt class="descname">TicketParseError</tt><big>(</big><em>ticket</em>, <em>msg=''</em><big>)</big><a class="reference internal" href="_modules/mod_auth/exception.html#TicketParseError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mod_auth.exception.TicketParseError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Base class for all ticket parsing errors</p>
+</dd></dl>
+
+</div>
+<div class="section" id="license">
+<h1>LICENSE<a class="headerlink" href="#license" title="Permalink to this headline">¶</a></h1>
+<p>mod_auth is copyright SuperComputer Solutions S.r.l. (<a class="reference external" href="http://www.scsitaly.com">SCS</a>)
+All rights reserved.</p>
+<p>Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:</p>
+<ol class="arabic simple">
+<li>Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.</li>
+<li>Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.</li>
+<li>Neither the name of the author nor the names of its contributors
+may be used to endorse or promote products derived from this software
+without specific prior written permission.</li>
+</ol>
+<p>THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS <a href="#id5"><span class="problematic" id="id6">``</span></a>AS IS&#8217;&#8217; AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.</p>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><em>Index</em></a></li>
+<li><a class="reference internal" href="py-modindex.html"><em>Module Index</em></a></li>
+<li><a class="reference internal" href="search.html"><em>Search Page</em></a></li>
+</ul>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Welcome to mod_auth&#8217;s documentation!</a><ul>
+<li><a class="reference internal" href="#requirement">Requirement</a></li>
+<li><a class="reference internal" href="#installation">Installation</a><ul>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-mod_auth.mod_auth">Mod_Auth</a><ul>
+<li><a class="reference internal" href="#mod-auth-tkt-style-cookie-authentication">mod_auth_tkt style cookie authentication</a><ul>
+<li><a class="reference internal" href="#configuration">Configuration</a></li>
+<li><a class="reference internal" href="#ticket-creation">Ticket creation</a></li>
+<li><a class="reference internal" href="#ticket-validation">Ticket validation</a></li>
+<li><a class="reference internal" href="#tokens-and-user-data">Tokens and user data</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mod-auth-pubtkt-style-cookie-authentication">Mod_auth_pubtkt style cookie authentication</a><ul>
+<li><a class="reference internal" href="#id1">Configuration</a></li>
+<li><a class="reference internal" href="#id2">Ticket creation</a></li>
+<li><a class="reference internal" href="#id3">Ticket validation</a></li>
+<li><a class="reference internal" href="#id4">Tokens and user data</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#simple-use">Simple use</a></li>
+<li><a class="reference internal" href="#signedticket">SignedTicket</a></li>
+<li><a class="reference internal" href="#ticket">Ticket</a></li>
+<li><a class="reference internal" href="#module-mod_auth.exception">Exception</a></li>
+<li><a class="reference internal" href="#license">LICENSE</a></li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/index.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="#">mod_auth 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, Alfredo Saglimbeni.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,739 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mod_auth.mod_auth &mdash; mod_auth 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="mod_auth 1.0 documentation" href="../../index.html" />
+    <link rel="up" title="mod_auth" href="../mod_auth.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">mod_auth 1.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../mod_auth.html" accesskey="U">mod_auth</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for mod_auth.mod_auth</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module implements the session cookie format from mod_auth_tkt_ and mod_auth_pubtkt_.</span>
+<span class="sd">In this documentation show you how to use and integrate mod_auth library into your project.</span>
+
+<span class="sd">Contributors:</span>
+
+<span class="sd">Before start I want say a BIG TANKS to plone.session team for tkauth.py module. It help us to start with this library:</span>
+
+<span class="sd"> plone-session: https://github.com/plone/plone.session/blob/master/plone/session/tktauth.py</span>
+
+<span class="sd">And to Andrey Plotnikov for a easy implementation fo mod_auth_pubtkt</span>
+
+<span class="sd"> auth_pubtkt: https://github.com/AndreyPlotnikov/auth_pubtkt</span>
+
+<span class="sd">mod_auth_tkt style cookie authentication</span>
+<span class="sd">========================================</span>
+
+<span class="sd">Mod_auth library implements the session cookie format from mod_auth_tkt_, the class used is Ticket.</span>
+<span class="sd">Now ``createTicket`` and ``validateTicket`` functions use the MD5_ based</span>
+<span class="sd">double hashing scheme in the original mod_auth_tkt.</span>
+
+<span class="sd">.. _mod_auth_tkt: http://www.openfusion.com.au/labs/mod_auth_tkt/</span>
+<span class="sd">.. _mod_auth_pubtkt: https://neon1.net/mod_auth_pubtkt/index.html</span>
+<span class="sd">.. _MD5: http://en.wikipedia.org/wiki/MD5</span>
+<span class="sd">.. _HMAC: http://en.wikipedia.org/wiki/HMAC</span>
+<span class="sd">.. _SHA-256: http://en.wikipedia.org/wiki/SHA-256</span>
+
+
+<span class="sd">Configuration</span>
+<span class="sd">-------------</span>
+<span class="sd">In mod_auth_tkt the protocol depends on a secret string shared between servers.</span>
+<span class="sd">From time to time this string should be changed, so store it in a configuration file.</span>
+
+<span class="sd">  &gt;&gt;&gt; SECRET = &#39;b8fb7b6df0d64dd98b8ccd00577434d7&#39;</span>
+
+<span class="sd">The tickets are only valid for a limited time. Here we will use 24 hours</span>
+
+<span class="sd">  &gt;&gt;&gt; DEFAULT_TIMEOUT = 24*60*60</span>
+
+
+<span class="sd">Cookie creation</span>
+<span class="sd">---------------</span>
+<span class="sd">The minimal set of attributes to create a ticket are composed only from a userid:</span>
+
+<span class="sd">    &gt;&gt;&gt; userid = &#39;testUser&#39;</span>
+
+<span class="sd">First stemp is to init Ticket object:</span>
+
+<span class="sd">    &gt;&gt;&gt; from mod_auth import Ticket</span>
+<span class="sd">    &gt;&gt;&gt; mod_auth_Ticket = Ticket(SECRET)</span>
+
+<span class="sd">So, set the validuntil that the user will log out.</span>
+
+<span class="sd">    &gt;&gt;&gt; validuntil = int(time.time())+ (24*60*60)</span>
+
+
+<span class="sd">We will create a mod_auth_tkt compatible ticket. In the simplest case no extra</span>
+<span class="sd">data is supplied.</span>
+
+<span class="sd">    &gt;&gt;&gt; ticket = mod_auth_Ticket.createTkt(userid,validuntil=validuntil)</span>
+<span class="sd">    &gt;&gt;&gt;&#39;b054eeab313d4b75e10f4fd4ddb36ecf50115dcctestUser!&#39;</span>
+
+<span class="sd">The cookie itself should be base64 encoded. We will use the built-in Cookie</span>
+<span class="sd">module here, your web framework may supply it&#39;s own mechanism.</span>
+
+<span class="sd">  &gt;&gt;&gt; import Cookie, binascii</span>
+<span class="sd">  &gt;&gt;&gt; cookie = Cookie.SimpleCookie()</span>
+<span class="sd">  &gt;&gt;&gt; cookie[&#39;auth_tkt&#39;] = binascii.b2a_base64(ticket).strip()</span>
+<span class="sd">  &gt;&gt;&gt; print cookie</span>
+<span class="sd">  Set-Cookie: auth_tkt=YjA1NGVlYWIzMTNkNGI3NWUxMGY0ZmQ0ZGRiMzZlY2Y1MDExNWRjY3Rlc3RVc2VyIQ==</span>
+
+
+<span class="sd">Cookie validation</span>
+<span class="sd">-----------------</span>
+
+<span class="sd">First the ticket has to be read from the cookie and unencoded:</span>
+
+<span class="sd">  &gt;&gt;&gt; ticket = binascii.a2b_base64(cookie[&#39;auth_tkt&#39;].value)</span>
+<span class="sd">  &gt;&gt;&gt; ticket</span>
+<span class="sd">  &#39;b054eeab313d4b75e10f4fd4ddb36ecf50115dcctestUser!&#39;</span>
+
+<span class="sd">The server that invoke validateTkt and open a session cookie</span>
+<span class="sd">need of the SECRET to validate the digest into ticket.</span>
+
+<span class="sd">Init the Ticket object:</span>
+
+<span class="sd">    &gt;&gt;&gt; from mod_auth import Ticket</span>
+<span class="sd">    &gt;&gt;&gt; mod_auth_Ticket = Ticket(SECRET)</span>
+
+<span class="sd">next step is to validate:</span>
+
+<span class="sd">    &gt;&gt;&gt; mod_auth_Ticket.validateTkt(ticket)</span>
+<span class="sd">    &gt;&gt;&gt; (u&#39;testUser&#39;, (), u&#39;&#39;, 1343315404)</span>
+
+<span class="sd">If the ticket is valid and not expired , validateTkt return all information</span>
+<span class="sd">about logged user else raise an Exception (see function documentation for detail)</span>
+
+
+<span class="sd">Tokens and user data</span>
+<span class="sd">--------------------</span>
+
+<span class="sd">The format allows for optional user data and tokens. For detail you can see</span>
+<span class="sd">the test.py into mod_auh module, where there are some use test of this class.</span>
+<span class="sd">Here an example:</span>
+
+<span class="sd">    &gt;&gt;&gt; Secret = str(uuid.uuid4().hex)</span>
+<span class="sd">    &gt;&gt;&gt; # Init SignedTicket object</span>
+<span class="sd">    &gt;&gt;&gt; simpleTicket = Ticket(Secret)</span>
+
+<span class="sd">    &gt;&gt;&gt; #USER DATA</span>
+
+<span class="sd">    &gt;&gt;&gt; userid = &#39;TestUser&#39;</span>
+<span class="sd">    &gt;&gt;&gt; tokens = (&#39;role1&#39;, &#39;role2&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; userdata = (&#39;testuser@mail.com&#39;,&#39;Italy&#39;,&#39;Bologna&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; cip = &#39;127.0.0.1&#39;</span>
+<span class="sd">    &gt;&gt;&gt; # ticket is valdi until 24 from now</span>
+<span class="sd">    &gt;&gt;&gt; validuntil = int(time.time())+ (24*60*60)</span>
+
+<span class="sd">    &gt;&gt;&gt; #END USERDATA</span>
+
+<span class="sd">    &gt;&gt;&gt; ticket = simpleTicket.createTkt(userid,tokens,userdata,cip,validuntil)</span>
+
+
+<span class="sd">Mod_auth_pubtkt style cookie authentication</span>
+<span class="sd">===========================================</span>
+
+<span class="sd">mod_auth_pubtkt_ is a module that authenticates a user based on a cookie</span>
+<span class="sd">with a ticket that has been issued by a central login server and digitally signed</span>
+<span class="sd">using either RSA or DSA. This means that only the trusted login server has the private key</span>
+<span class="sd">required to generate tickets, while web servers only need the corresponding public key to verify them.</span>
+
+<span class="sd">In mod_auth module is implemented  by SignedTicket class.</span>
+
+<span class="sd">Configuration</span>
+<span class="sd">-------------</span>
+<span class="sd">BE CAREFUL!For your safety, please, if you use this module in your project,</span>
+<span class="sd">generate new keys (DSA or RSA) , to do that see the section below:</span>
+
+<span class="sd">From your unix shell.</span>
+<span class="sd">DSA:</span>
+
+<span class="sd">     openssl dsaparam -out dsaparam.pem 2048</span>
+
+<span class="sd">     openssl gendsa -out privDSAkey.pem dsaparam.pem</span>
+
+<span class="sd">     openssl dsa -in privDSAkey.pem -out pubDSAkey.pem -pubout</span>
+
+<span class="sd">     The dsaparam.pem file is not needed anymore after key generation and can safely be deleted.</span>
+
+<span class="sd">RSA:</span>
+
+<span class="sd">     openssl genDSArsa -out privkey.pem 2048</span>
+
+<span class="sd">     openssl rsa -in privDSAkey.pem -out pubkey.pem -pubout</span>
+
+
+<span class="sd">Cookie creation</span>
+<span class="sd">---------------</span>
+<span class="sd">Like into Ticket class , the minimal set of attributes</span>
+<span class="sd">to create a ticket are composed only by a userid:</span>
+
+<span class="sd">    &gt;&gt;&gt; userid = &#39;testUser&#39;</span>
+
+<span class="sd">First stemp is to init SignedTicket object with your keys:</span>
+
+<span class="sd">    &gt;&gt;&gt; from mod_auth import SignedTicket</span>
+<span class="sd">    &gt;&gt;&gt; mod_auth_pubTicket = Ticket(path_pub_key,path_priv_key)</span>
+
+<span class="sd">you can use RSA or DSA keys in pem or der format.</span>
+
+<span class="sd">So, set the validuntil that the user will log out.</span>
+
+<span class="sd">    &gt;&gt;&gt; validuntil = int(time.time())+ (24*60*60)</span>
+
+<span class="sd">We will create a mod_auth_pubtkt compatible ticket. In the simplest case no extra</span>
+<span class="sd">data is supplied.</span>
+
+<span class="sd">    &gt;&gt;&gt; ticket = mod_auth_pubTicket.createTkt(userid,validuntil=validuntil)</span>
+<span class="sd">    &gt;&gt;&gt;&#39;uid=testUser;validuntil=1343379094;cip=0.0.0.0;sig=MC0CFQCJexq0701MPIcUYHoacJCKCbor1gIUI+oPZElmsNY8/rmk069+ef/u47o=&#39;</span>
+
+<span class="sd">The cookie itself should be base64 encoded. We will use the built-in Cookie</span>
+<span class="sd">module here, your web framework may supply it&#39;s own mechanism.</span>
+
+<span class="sd">  &gt;&gt;&gt; import Cookie, binascii</span>
+<span class="sd">  &gt;&gt;&gt; cookie = Cookie.SimpleCookie()</span>
+<span class="sd">  &gt;&gt;&gt; cookie[&#39;auth_tkt&#39;] = binascii.b2a_base64(ticket).strip()</span>
+<span class="sd">  &gt;&gt;&gt; print cookie</span>
+<span class="sd">  Set-Cookie: auth_tkt=dWlkPXRlc3RVc2VyO3ZhbGlkdW50aWw9MTM0MzM3OTA5NDtjaXA9MC4wLjAuMDtzaWc9TUMwQ0ZEK1RibmpjMi91OEdjZVBGMm1MK24xTXk5bjRBaFVBalBFYTRDZ1RORHhMV2dlWjZTVjhjSGN3S3pRPQ==</span>
+
+<span class="sd">Cookie validation</span>
+<span class="sd">-----------------</span>
+
+<span class="sd">First the ticket has to be read from the cookie and unencoded:</span>
+
+<span class="sd">  &gt;&gt;&gt; ticket = binascii.a2b_base64(cookie[&#39;auth_tkt&#39;].value)</span>
+<span class="sd">  &gt;&gt;&gt; ticket</span>
+<span class="sd">  &#39;uid=testUser;validuntil=1343379094;cip=0.0.0.0;sig=MC0CFQCJexq0701MPIcUYHoacJCKCbor1gIUI+oPZElmsNY8/rmk069+ef/u47o=&#39;</span>
+
+<span class="sd">The server that invoke validateTkt and open a session cookie</span>
+<span class="sd">need at least public Key.</span>
+<span class="sd">Init the Ticket object:</span>
+
+<span class="sd">    &gt;&gt;&gt; from mod_auth import SignedTicket</span>
+<span class="sd">    &gt;&gt;&gt; mod_auth_pubTicket = SignedTicket(path_pub_key)</span>
+<span class="sd">    ## if you init with public key , SignedTicket can only validate and not create</span>
+
+<span class="sd">next step is to validate:</span>
+
+<span class="sd">    &gt;&gt;&gt; mod_auth_pubTicket.validateTkt(ticket)</span>
+<span class="sd">    &gt;&gt;&gt; (u&#39;testUser&#39;, [], [], 1343380332)</span>
+
+<span class="sd">If the ticket is valid with valid sign and not expired , validateTkt return all information</span>
+<span class="sd">about logged user else raise an Exception (see function documentation for detail)</span>
+
+<span class="sd">Tokens and user data</span>
+<span class="sd">--------------------</span>
+
+<span class="sd">The format allows for optional user data and tokens. For detail you can see</span>
+<span class="sd">the test.py into mod_auh module, where there are some use test of this class.</span>
+<span class="sd">Here an example:</span>
+
+<span class="sd">    &gt;&gt;&gt; # Init SignedTicket object</span>
+<span class="sd">    &gt;&gt;&gt; signTicket = SignedTicket(&#39;./DSApubkey.pem&#39;,&#39;./DSAprivkey.pem&#39;)</span>
+
+<span class="sd">    &gt;&gt;&gt; #USER DATA</span>
+<span class="sd">    &gt;&gt;&gt; userid = &#39;TestUser&#39;</span>
+<span class="sd">    &gt;&gt;&gt; tokens = (&#39;role1&#39;, &#39;role2&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; userdata = (&#39;testuser@mail.com&#39;,&#39;Italy&#39;,&#39;Bologna&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; cip = &#39;127.0.0.1&#39;</span>
+<span class="sd">    &gt;&gt;&gt; # ticket is valdi until 24h from now</span>
+<span class="sd">    &gt;&gt;&gt; validuntil = int(time.time())+ (24*60*60)</span>
+<span class="sd">    &gt;&gt;&gt; #END USERDATA</span>
+
+<span class="sd">    &gt;&gt;&gt; ticket = signTicket.createTkt(userid,tokens,userdata,cip,validuntil)</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s">&#39;Alfredo Saglimbeni&#39;</span>
+<span class="n">__mail__</span> <span class="o">=</span> <span class="s">&#39;repirro(at)gmail.com, as.aglimbeni(at)scsitaly.com&#39;</span>
+
+<span class="kn">from</span> <span class="nn">socket</span> <span class="kn">import</span> <span class="n">inet_aton</span>
+<span class="kn">from</span> <span class="nn">struct</span> <span class="kn">import</span> <span class="n">pack</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">from</span> <span class="nn">exception</span> <span class="kn">import</span> <span class="o">*</span>
+
+<span class="c">###IMPORT FOR MOD_AUTHPUBTKT###</span>
+<span class="kn">from</span> <span class="nn">M2Crypto</span> <span class="kn">import</span> <span class="n">RSA</span><span class="p">,</span> <span class="n">DSA</span>
+
+<span class="c">## DEFAULT CONFIGURATION</span>
+<span class="n">DEFAULT_TIMEOUT</span><span class="o">=</span> <span class="mi">12</span><span class="o">*</span><span class="mi">60</span><span class="o">*</span><span class="mi">60</span>
+<span class="c">########################</span>
+
+<span class="c">###########################</span>
+<span class="c">#### MOD_AUTH_PUBTKT ######</span>
+<span class="c">###########################</span>
+
+<div class="viewcode-block" id="SignedTicket"><a class="viewcode-back" href="../../index.html#mod_auth.mod_auth.SignedTicket">[docs]</a><span class="k">class</span> <span class="nc">SignedTicket</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">    TEST</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pub_key_Path</span><span class="p">,</span> <span class="n">priv_key_Path</span><span class="o">=</span><span class="bp">None</span> <span class="p">):</span>
+        <span class="c">##LOAD priv_key</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">priv_key</span> <span class="o">=</span> <span class="n">RSA</span><span class="o">.</span><span class="n">load_key</span><span class="p">(</span><span class="n">priv_key_Path</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">priv_key</span> <span class="o">=</span> <span class="n">DSA</span><span class="o">.</span><span class="n">load_key</span><span class="p">(</span><span class="n">priv_key_Path</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">priv_key_Path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">priv_key</span><span class="p">,</span> <span class="n">RSA</span><span class="o">.</span><span class="n">RSA</span><span class="p">):</span>
+                <span class="n">pub_key</span> <span class="o">=</span> <span class="n">RSA</span><span class="o">.</span><span class="n">load_pub_key</span><span class="p">(</span><span class="n">pub_key_Path</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pub_key</span> <span class="o">=</span> <span class="n">DSA</span><span class="o">.</span><span class="n">load_pub_key</span><span class="p">(</span><span class="n">pub_key_Path</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Unknown key type: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">pub_key</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">priv_key</span> <span class="o">=</span> <span class="n">priv_key</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pub_key</span> <span class="o">=</span>  <span class="n">pub_key</span>
+
+
+    <span class="k">def</span> <span class="nf">__verify_sig</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">sig</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Verify ticket signature.</span>
+
+<span class="sd">        Returns False if ticket is tampered with and True if ticket is good.</span>
+
+<span class="sd">        Arguments:</span>
+
+<span class="sd">        ``pubkey``:</span>
+<span class="sd">            Public key object. It must be M2Crypto.RSA.RSA_pub or M2Crypto.DSA.DSA_pub instance</span>
+
+<span class="sd">        ``data``:</span>
+<span class="sd">            Ticket string without signature part.</span>
+
+<span class="sd">        ``sig``:</span>
+<span class="sd">            Ticket&#39;s sig field value.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sig</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">sig</span><span class="p">)</span>
+        <span class="n">dgst</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha1</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">digest</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pub_key</span><span class="p">,</span> <span class="n">RSA</span><span class="o">.</span><span class="n">RSA_pub</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pub_key</span><span class="o">.</span><span class="n">verify</span><span class="p">(</span><span class="n">dgst</span><span class="p">,</span> <span class="n">sig</span><span class="p">,</span> <span class="s">&#39;sha1&#39;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">RSA</span><span class="o">.</span><span class="n">RSAError</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">False</span>
+            <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pub_key</span><span class="p">,</span> <span class="n">DSA</span><span class="o">.</span><span class="n">DSA_pub</span><span class="p">):</span>
+            <span class="k">return</span> <span class="ow">not</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pub_key</span><span class="o">.</span><span class="n">verify_asn1</span><span class="p">(</span><span class="n">dgst</span><span class="p">,</span> <span class="n">sig</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Unknown key type: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">pub_key</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__calculate_sig</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calculates and returns ticket&#39;s signature.</span>
+
+<span class="sd">        Arguments:</span>
+
+<span class="sd">        ``privkey``:</span>
+<span class="sd">           Private key object. It must be M2Crypto.RSA.RSA or M2Crypto.DSA.DSA instance.</span>
+
+<span class="sd">        ``data``:</span>
+<span class="sd">           Ticket string without signature part.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dgst</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha1</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">digest</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">priv_key</span><span class="p">,</span> <span class="n">RSA</span><span class="o">.</span><span class="n">RSA</span><span class="p">):</span>
+            <span class="n">sig</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">priv_key</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">dgst</span><span class="p">,</span> <span class="s">&#39;sha1&#39;</span><span class="p">)</span>
+            <span class="n">sig</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">sig</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">priv_key</span><span class="p">,</span> <span class="n">DSA</span><span class="o">.</span><span class="n">DSA</span><span class="p">):</span>
+            <span class="n">sig</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">priv_key</span><span class="o">.</span><span class="n">sign_asn1</span><span class="p">(</span><span class="n">dgst</span><span class="p">)</span>
+            <span class="n">sig</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">sig</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Unknonw key type: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">priv_key</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">sig</span>
+
+    <span class="k">def</span> <span class="nf">__create_ticket</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="n">validuntil</span><span class="p">,</span> <span class="n">ip</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">tokens</span><span class="o">=</span><span class="p">(),</span><span class="n">udata</span><span class="o">=</span><span class="p">(),</span> <span class="n">graceperiod</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">extra_fields</span> <span class="o">=</span> <span class="p">()</span> <span class="p">,</span> <span class="n">encoding</span> <span class="o">=</span> <span class="s">&quot;utf8&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns signed mod_auth_pubtkt ticket.</span>
+
+<span class="sd">        Mandatory arguments:</span>
+
+<span class="sd">        ``privkey``:</span>
+<span class="sd">           Private key object. It must be M2Crypto.RSA.RSA or M2Crypto.DSA.DSA instance.</span>
+
+<span class="sd">        ``uid``:</span>
+<span class="sd">            The user ID. String value 32 chars max.</span>
+
+<span class="sd">        ``validuntil``:</span>
+<span class="sd">            A unix timestamp that describe when this ticket will expire. Integer value.</span>
+
+<span class="sd">        Optional arguments:</span>
+
+<span class="sd">        ``ip``:</span>
+<span class="sd">           The IP address of the client that the ticket has been issued for.</span>
+
+<span class="sd">        ``tokens``:</span>
+<span class="sd">           List of authorization tokens.</span>
+
+<span class="sd">        ``udata``:</span>
+<span class="sd">           Misc user data.</span>
+
+<span class="sd">        ``graceperiod``:</span>
+<span class="sd">            A unix timestamp after which GET requests will be redirected to refresh URL.</span>
+
+<span class="sd">        ``extra_fields``:</span>
+<span class="sd">            List of (field_name, field_value) pairs which contains addtional, non-standard fields.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">uid</span> <span class="o">=</span> <span class="n">uid</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="s">&#39;uid=</span><span class="si">%s</span><span class="s">;validuntil=</span><span class="si">%d</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">uid</span><span class="p">,</span> <span class="n">validuntil</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ip</span><span class="p">:</span>
+            <span class="n">v</span> <span class="o">+=</span> <span class="s">&#39;;cip=</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">ip</span>
+        <span class="k">if</span> <span class="n">tokens</span><span class="p">:</span>
+            <span class="n">v</span> <span class="o">+=</span> <span class="s">&#39;;tokens=</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="s">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">graceperiod</span><span class="p">:</span>
+            <span class="c">##TODO not used in 1.0 version</span>
+            <span class="n">v</span> <span class="o">+=</span> <span class="s">&#39;;graceperiod=</span><span class="si">%d</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">graceperiod</span>
+        <span class="k">if</span> <span class="n">udata</span><span class="p">:</span>
+            <span class="n">v</span> <span class="o">+=</span> <span class="s">&#39;;udata=</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="s">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">udata</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">fv</span> <span class="ow">in</span> <span class="n">extra_fields</span><span class="p">:</span>
+            <span class="c">##TODO not userd in 1.0 version</span>
+            <span class="n">v</span> <span class="o">+=</span> <span class="s">&#39;;</span><span class="si">%s</span><span class="s">=</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">fv</span><span class="p">)</span>
+        <span class="n">v</span> <span class="o">+=</span> <span class="s">&#39;;sig=</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__calculate_sig</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">v</span>
+
+    <span class="k">def</span> <span class="nf">__parse_ticket</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ticket</span><span class="p">,</span> <span class="n">encoding</span> <span class="o">=</span> <span class="s">&#39;utf8&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Parse and verify auth_pubtkt ticket.</span>
+
+<span class="sd">        Returns dict with ticket&#39;s fields.</span>
+
+<span class="sd">        ``BadTicket`` and ``BadSignature`` exceptions can be raised</span>
+<span class="sd">        in case of invalid ticket format or signature verification failure.</span>
+
+<span class="sd">        Arguments:</span>
+
+<span class="sd">        ``ticket``:</span>
+<span class="sd">            Ticket string value.</span>
+
+<span class="sd">        ``pubkey``:</span>
+<span class="sd">            Public key object. It must be M2Crypto.RSA.RSA_pub or M2Crypto.DSA.DSA_pub instance</span>
+
+<span class="sd">        ``verify_sig``:</span>
+<span class="sd">            Function which perform signature verification. By default verify_sig function from this module is used.</span>
+<span class="sd">            This argument is needed for testing purposes only.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">i</span> <span class="o">=</span> <span class="n">ticket</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="s">&#39;;&#39;</span><span class="p">)</span>
+        <span class="n">sig</span> <span class="o">=</span> <span class="n">ticket</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="k">if</span> <span class="n">sig</span><span class="p">[:</span><span class="mi">4</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;sig=&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BadTicket</span><span class="p">(</span><span class="n">ticket</span><span class="p">)</span>
+        <span class="n">sig</span> <span class="o">=</span> <span class="n">sig</span><span class="p">[</span><span class="mi">4</span><span class="p">:]</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">ticket</span><span class="p">[:</span><span class="n">i</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">__verify_sig</span><span class="p">(</span> <span class="n">data</span><span class="p">,</span> <span class="n">sig</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">BadSignature</span><span class="p">(</span><span class="n">ticket</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span>  <span class="n">data</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">fields</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;=&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;;&#39;</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BadTicket</span><span class="p">(</span><span class="n">ticket</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s">&#39;uid&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BadTicket</span><span class="p">(</span><span class="n">ticket</span><span class="p">,</span> <span class="s">&#39;uid field required&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s">&#39;validuntil&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BadTicket</span><span class="p">(</span><span class="n">ticket</span><span class="p">,</span> <span class="s">&#39;validuntil field required&#39;</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">fields</span><span class="p">[</span><span class="s">&#39;validuntil&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">fields</span><span class="p">[</span><span class="s">&#39;validuntil&#39;</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BadTicket</span><span class="p">(</span><span class="n">ticket</span><span class="p">,</span> <span class="s">&#39;Bad value for validuntil field&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s">&#39;tokens&#39;</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
+            <span class="n">tokens</span> <span class="o">=</span> <span class="n">fields</span><span class="p">[</span><span class="s">&#39;tokens&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">tokens</span> <span class="o">==</span> <span class="p">[</span><span class="s">&#39;&#39;</span><span class="p">]:</span>
+                <span class="n">tokens</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">fields</span><span class="p">[</span><span class="s">&#39;tokens&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">fields</span><span class="p">[</span><span class="s">&#39;tokens&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
+
+        <span class="k">if</span> <span class="s">&#39;udata&#39;</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
+            <span class="n">udata</span> <span class="o">=</span> <span class="n">fields</span><span class="p">[</span><span class="s">&#39;udata&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">udata</span> <span class="o">==</span> <span class="p">[</span><span class="s">&#39;&#39;</span><span class="p">]:</span>
+                <span class="n">udata</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">fields</span><span class="p">[</span><span class="s">&#39;udata&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">udata</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">fields</span><span class="p">[</span><span class="s">&#39;udata&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
+
+        <span class="k">if</span> <span class="s">&#39;graceperiod&#39;</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">fields</span><span class="p">[</span><span class="s">&#39;graceperiod&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">fields</span><span class="p">[</span><span class="s">&#39;graceperiod&#39;</span><span class="p">])</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">BadTicket</span><span class="p">(</span><span class="n">ticket</span><span class="p">,</span> <span class="s">&#39;Bad value for graceperiod field&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">fields</span>
+
+
+<div class="viewcode-block" id="SignedTicket.validateTkt"><a class="viewcode-back" href="../../index.html#mod_auth.mod_auth.SignedTicket.validateTkt">[docs]</a>    <span class="k">def</span> <span class="nf">validateTkt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">ticket</span><span class="p">,</span> <span class="n">now</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s">&#39;utf8&#39;</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">parsed_ticket</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__parse_ticket</span><span class="p">(</span><span class="n">ticket</span><span class="p">,</span><span class="n">encoding</span><span class="p">)</span>
+            <span class="p">(</span> <span class="n">validuntil</span> <span class="p">,</span> <span class="n">userid</span><span class="p">,</span> <span class="n">cip</span><span class="p">,</span> <span class="n">token_list</span><span class="p">,</span> <span class="n">user_data</span><span class="p">)</span> <span class="o">=</span> <span class="n">parsed_ticket</span><span class="p">[</span><span class="s">&#39;validuntil&#39;</span><span class="p">],</span>  <span class="n">parsed_ticket</span><span class="p">[</span><span class="s">&#39;uid&#39;</span><span class="p">],</span> <span class="n">parsed_ticket</span><span class="p">[</span><span class="s">&#39;cip&#39;</span><span class="p">]</span> <span class="p">,</span><span class="n">parsed_ticket</span><span class="p">[</span><span class="s">&#39;tokens&#39;</span><span class="p">]</span> <span class="p">,</span><span class="n">parsed_ticket</span><span class="p">[</span><span class="s">&#39;udata&#39;</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">now</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">validuntil</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">now</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">userid</span><span class="p">,</span><span class="n">token_list</span><span class="p">,</span><span class="n">user_data</span><span class="p">,</span><span class="n">validuntil</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">TicketExpired</span><span class="p">(</span><span class="n">ticket</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">TicketParseError</span><span class="p">(</span><span class="n">ticket</span><span class="p">,</span><span class="s">&#39;Validate error&#39;</span><span class="p">)</span>
+
+
+</div>
+<div class="viewcode-block" id="SignedTicket.createTkt"><a class="viewcode-back" href="../../index.html#mod_auth.mod_auth.SignedTicket.createTkt">[docs]</a>    <span class="k">def</span> <span class="nf">createTkt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">userid</span><span class="p">,</span> <span class="n">tokens</span><span class="o">=</span><span class="p">(),</span> <span class="n">user_data</span><span class="o">=</span><span class="p">(),</span> <span class="n">cip</span><span class="o">=</span><span class="s">&#39;0.0.0.0&#39;</span><span class="p">,</span> <span class="n">validuntil</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s">&#39;utf8&#39;</span> <span class="p">):</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">priv_key</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;Private key is not Loaded: you can only validate&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">validuntil</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">validuntil</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span> <span class="o">+</span> <span class="n">DEFAULT_TIMEOUT</span>
+
+        <span class="n">userid</span> <span class="o">=</span> <span class="n">userid</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span>
+
+        <span class="c">#TODO graceperiod and extra_field is not used in 1.0 version</span>
+        <span class="n">ticket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">__create_ticket</span><span class="p">(</span><span class="n">userid</span><span class="p">,</span><span class="n">validuntil</span><span class="p">,</span><span class="n">cip</span><span class="p">,</span><span class="n">tokens</span><span class="p">,</span><span class="n">user_data</span><span class="p">,</span><span class="n">encoding</span><span class="o">=</span><span class="n">encoding</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">ticket</span>
+
+<span class="c">###########################</span>
+<span class="c">###//END:MOD_AUTH_PUBTKT###</span>
+<span class="c">###########################</span>
+
+<span class="c">#######################</span>
+<span class="c">#### MOD_AUT_TKT ######</span>
+<span class="c">#######################</span></div></div>
+<div class="viewcode-block" id="Ticket"><a class="viewcode-back" href="../../index.html#mod_auth.mod_auth.Ticket">[docs]</a><span class="k">class</span> <span class="nc">Ticket</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">secret</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">secret</span><span class="o">=</span><span class="n">secret</span>
+
+
+    <span class="k">def</span> <span class="nf">__mod_auth_tkt_digest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data1</span><span class="p">,</span> <span class="n">data2</span><span class="p">):</span>
+        <span class="n">digest0</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">data1</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">secret</span> <span class="o">+</span> <span class="n">data2</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+        <span class="n">digest</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">digest0</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">secret</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">digest</span>
+
+    <span class="k">def</span> <span class="nf">__splitTicket</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">ticket</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s">&#39;utf8&#39;</span><span class="p">):</span>
+        <span class="n">digest</span> <span class="o">=</span> <span class="n">ticket</span><span class="p">[:</span><span class="mi">32</span><span class="p">]</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="n">ticket</span><span class="p">[</span><span class="mi">32</span><span class="p">:</span><span class="mi">40</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">val</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span>
+        <span class="n">timestamp</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="mi">16</span><span class="p">)</span> <span class="c"># convert from hexadecimal+</span>
+
+        <span class="n">parts</span> <span class="o">=</span> <span class="n">ticket</span><span class="p">[</span><span class="mi">40</span><span class="p">:]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;!&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">userid</span><span class="p">,</span> <span class="n">user_data</span> <span class="o">=</span> <span class="n">parts</span>
+            <span class="n">tokens</span> <span class="o">=</span> <span class="p">()</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">user_data</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+                <span class="n">user_data</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">user_data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">))</span>
+
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">userid</span><span class="p">,</span> <span class="n">token_list</span><span class="p">,</span> <span class="n">user_data</span> <span class="o">=</span> <span class="n">parts</span>
+            <span class="n">tokens</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">token_list</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">))</span>
+            <span class="n">user_data</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">user_data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span>
+
+        <span class="k">return</span> <span class="n">digest</span><span class="p">,</span> <span class="n">userid</span><span class="p">,</span> <span class="n">tokens</span><span class="p">,</span> <span class="n">user_data</span><span class="p">,</span> <span class="n">timestamp</span>
+
+<div class="viewcode-block" id="Ticket.createTkt"><a class="viewcode-back" href="../../index.html#mod_auth.mod_auth.Ticket.createTkt">[docs]</a>    <span class="k">def</span> <span class="nf">createTkt</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">userid</span><span class="p">,</span> <span class="n">tokens</span><span class="o">=</span><span class="p">(),</span> <span class="n">user_data</span><span class="o">=</span><span class="p">(),</span> <span class="n">cip</span><span class="o">=</span><span class="s">&#39;0.0.0.0&#39;</span><span class="p">,</span> <span class="n">validuntil</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s">&#39;utf8&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create Ticket from given data.</span>
+
+<span class="sd">        Arguments:</span>
+<span class="sd">                userid (string) : The user unique identifier.\n</span>
+<span class="sd">                tokens (tupla) : Permission for Given user.\n</span>
+<span class="sd">                user_data (tupla) : User&#39;s infromations.\n</span>
+<span class="sd">                cip : sender ip.\n</span>
+<span class="sd">                validuntil : ticket validate until (unix timestamp) .\n</span>
+<span class="sd">                encoding : encoding\n</span>
+
+
+<span class="sd">        Return:</span>
+<span class="sd">                Ticket (string) : Resulting ticket.\n</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">validuntil</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">validuntil</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span> <span class="o">+</span> <span class="n">DEFAULT_TIMEOUT</span>
+
+        <span class="n">userid</span> <span class="o">=</span> <span class="n">userid</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span>
+
+        <span class="c">##OLD VERSION WITHOUT DSA SIGN</span>
+        <span class="n">token_list</span> <span class="o">=</span> <span class="s">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span>
+
+        <span class="n">user_list</span> <span class="o">=</span> <span class="s">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">user_data</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span>
+
+        <span class="c"># ip address is part of the format, set it to 0.0.0.0 to be ignored.</span>
+        <span class="c"># inet_aton packs the ip address into a 4 bytes in network byte order.</span>
+        <span class="c"># pack is used to convert timestamp from an unsigned integer to 4 bytes</span>
+        <span class="c"># in network byte order.</span>
+        <span class="n">data1</span> <span class="o">=</span> <span class="n">inet_aton</span><span class="p">(</span><span class="n">cip</span><span class="p">)</span> <span class="o">+</span> <span class="n">pack</span><span class="p">(</span><span class="s">&quot;!I&quot;</span><span class="p">,</span> <span class="n">validuntil</span><span class="p">)</span>
+        <span class="n">data2</span> <span class="o">=</span> <span class="s">&#39;</span><span class="se">\0</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">userid</span><span class="p">,</span> <span class="n">token_list</span><span class="p">,</span> <span class="n">user_list</span><span class="p">))</span>
+
+        <span class="n">digest</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__mod_auth_tkt_digest</span><span class="p">(</span><span class="n">data1</span><span class="p">,</span> <span class="n">data2</span><span class="p">)</span>
+
+        <span class="c"># digest + timestamp as an eight character hexadecimal + userid + !</span>
+        <span class="n">ticket</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s%08x%s</span><span class="s">!&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">digest</span><span class="p">,</span> <span class="n">validuntil</span><span class="p">,</span> <span class="n">userid</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">tokens</span><span class="p">:</span>
+            <span class="n">ticket</span> <span class="o">+=</span> <span class="n">token_list</span> <span class="o">+</span> <span class="s">&#39;!&#39;</span>
+        <span class="k">if</span> <span class="n">user_data</span><span class="p">:</span>
+            <span class="n">ticket</span> <span class="o">+=</span> <span class="n">user_list</span>
+
+        <span class="k">return</span> <span class="n">ticket</span>
+
+
+
+</div>
+<div class="viewcode-block" id="Ticket.validateTkt"><a class="viewcode-back" href="../../index.html#mod_auth.mod_auth.Ticket.validateTkt">[docs]</a>    <span class="k">def</span> <span class="nf">validateTkt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ticket</span><span class="p">,</span> <span class="n">cip</span><span class="o">=</span><span class="s">&#39;0.0.0.0&#39;</span><span class="p">,</span> <span class="n">now</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s">&#39;utf8&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        To validate, a new ticket is created from the data extracted from cookie</span>
+<span class="sd">        and the shared secret. The two digests are compared and timestamp checked.</span>
+<span class="sd">        Successful validation returns (digest, userid, tokens, user_data, timestamp).</span>
+<span class="sd">        On failure, return None.</span>
+<span class="sd">        Arguments:</span>
+<span class="sd">                    secret (string) : secret.\n</span>
+<span class="sd">                    ticket: given ticket.\n</span>
+<span class="sd">                    ip : sender ip.\n</span>
+<span class="sd">                    now: now timestamp.\n</span>
+<span class="sd">                    encoding : encoding.\n</span>
+
+<span class="sd">        Return:</span>
+<span class="sd">                    Ticket (string) : Resulting ticket.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+
+
+            <span class="p">(</span><span class="n">digest</span><span class="p">,</span> <span class="n">userid</span><span class="p">,</span> <span class="n">tokens</span><span class="p">,</span> <span class="n">user_data</span><span class="p">,</span> <span class="n">validuntil</span><span class="p">)</span> <span class="o">=</span> <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__splitTicket</span><span class="p">(</span><span class="n">ticket</span><span class="p">)</span>
+            <span class="n">new_ticket</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">createTkt</span><span class="p">(</span><span class="n">userid</span><span class="p">,</span> <span class="n">tokens</span><span class="p">,</span> <span class="n">user_data</span><span class="p">,</span> <span class="n">cip</span><span class="p">,</span> <span class="n">validuntil</span><span class="p">,</span> <span class="n">encoding</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">new_ticket</span><span class="p">[:</span><span class="mi">32</span><span class="p">]</span> <span class="o">==</span> <span class="n">digest</span><span class="p">:</span>
+
+                <span class="k">if</span> <span class="n">now</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                    <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">validuntil</span> <span class="o">&gt;</span> <span class="n">now</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BadTicket</span><span class="p">(</span><span class="n">ticket</span><span class="p">,</span><span class="s">&#39;ticket is not valid.&#39;</span><span class="p">)</span>
+
+        <span class="k">raise</span> <span class="n">BadTicket</span><span class="p">(</span><span class="n">ticket</span><span class="p">,</span><span class="s">&#39;ticket is not valid.&#39;</span><span class="p">)</span>
+
+
+<span class="c">#######################</span>
+<span class="c">## //END:MOD_AUT_TKT ##</span>
+<span class="c">#######################</span>
+
+
+<span class="c">#######################</span>
+<span class="c">##### EASY USE ########</span>
+<span class="c">#######################</span>
+
+</div></div>
+<span class="k">def</span> <span class="nf">createDefaultTicket</span><span class="p">(</span><span class="n">secret</span><span class="p">,</span> <span class="n">userid</span><span class="p">,</span> <span class="n">tokens</span><span class="o">=</span><span class="p">(),</span> <span class="n">user_data</span><span class="o">=</span><span class="p">()):</span>
+
+    <span class="c">##import uuid</span>
+    <span class="c">##uuid.uuid4().hex</span>
+    <span class="c"># init Ticket with secret key</span>
+    <span class="n">ticket</span> <span class="o">=</span> <span class="n">Ticket</span><span class="p">(</span><span class="n">secret</span><span class="p">)</span>
+
+    <span class="c">#generate ticket with user information</span>
+    <span class="k">return</span> <span class="n">ticket</span><span class="o">.</span><span class="n">createTkt</span><span class="p">(</span><span class="n">userid</span><span class="p">,</span><span class="n">tokens</span><span class="p">,</span><span class="n">user_data</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">validateDefaultTicket</span><span class="p">(</span><span class="n">secret</span><span class="p">,</span> <span class="n">ticket</span><span class="p">):</span>
+
+    <span class="c"># init Ticket with secret key</span>
+    <span class="n">ticket</span> <span class="o">=</span> <span class="n">Ticket</span><span class="p">(</span><span class="n">secret</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">ticket</span><span class="o">.</span><span class="n">validateTkt</span><span class="p">(</span><span class="n">ticket</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">mod_auth 1.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../mod_auth.html" >mod_auth</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, Alfredo Saglimbeni.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>
