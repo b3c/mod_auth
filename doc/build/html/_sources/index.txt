@@ -19,7 +19,7 @@ Installation
 
 To install mod_auth Library you can run this command from unix shell:
 
-    >>> sudo pip install https://github.com/asaglimbeni/mod_auth/zipball/master
+    >>> sudo pip install https://github.com/b3c/mod_auth/zipball/master
 
 
 .. toctree::
