@@ -264,10 +264,13 @@ class SignedTicket(object):
     def __init__(self,pub_key_Path, priv_key_Path=None ):
         ##LOAD priv_key
         try:
-            try:
-                priv_key = RSA.load_key(priv_key_Path)
-            except Exception, e:
-                priv_key = DSA.load_key(priv_key_Path)
+            if priv_key_Path is not None:
+                try:
+                    priv_key = RSA.load_key(priv_key_Path)
+                except Exception, e:
+                    priv_key = DSA.load_key(priv_key_Path)
+            else :
+                priv_key = None
 
             if priv_key_Path is not None and isinstance(priv_key, RSA.RSA):
                 pub_key = RSA.load_pub_key(pub_key_Path)
