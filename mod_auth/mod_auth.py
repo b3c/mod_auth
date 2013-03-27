@@ -534,8 +534,6 @@ class SignedTicket(object):
         if validuntil is None:
             validuntil = int(time.time()) + DEFAULT_TIMEOUT
 
-        userid = userid.encode(encoding)
-
         #TODO graceperiod and extra_field is not used in 1.0 version
         ticket=self.__create_ticket(userid,validuntil,cip,tokens,user_data,encoding=encoding)
 
